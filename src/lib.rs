@@ -5,10 +5,6 @@ mod models;
 // use `cargo expand` to see what the macro is generating.
 
 trait Controller {}
-trait Controllable {
-    fn count(&self) -> usize;
-    fn name_by_index(&self, index: usize) -> Option<&'static str>;
-}
 
 #[macro_export]
 macro_rules! register_impl {

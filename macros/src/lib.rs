@@ -94,7 +94,7 @@ fn parse_synchronization_data(
             pub fn message_for(
                 &self,
                 param_name: &str,
-                value: F32ControlValue,
+                value: groove_core::control::F32ControlValue,
             ) -> Option<#enum_name> {
                 if let Ok(message) = #enum_name::from_str(param_name) {
                     match message {
@@ -108,15 +108,15 @@ fn parse_synchronization_data(
         }
     };
     let controllable_block = quote! {
-        impl Controllable for #generics #struct_name #ty_generics {
-            fn name_by_index(&self, index: usize) -> Option<&'static str> {
+        impl groove_core::traits::Controllable for #generics #struct_name #ty_generics {
+            fn control_name_for_index(&self, index: usize) -> Option<&'static str> {
                 if let Some(message) = #enum_name::from_repr(index + 1) {
                     Some(message.into())
                 } else {
                     None
                 }
             }
-            fn count(&self) -> usize {
+            fn control_index_count(&self) -> usize {
                 #enum_name::COUNT - 1
             }
         }

@@ -1,5 +1,5 @@
-use crate::{all_entities, Controllable, Controller};
-use groove_core::control::F32ControlValue;
+use crate::{all_entities, Controller};
+use groove_core::{control::F32ControlValue, traits::Controllable};
 use std::str::FromStr;
 use struct_sync_macros::Synchronization;
 use strum::EnumCount;
@@ -215,6 +215,7 @@ all_entities! {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use groove_core::traits::Controllable;
 
     #[test]
     fn update_full() {
@@ -304,15 +305,19 @@ mod tests {
     fn control_ergonomics() {
         let a = Stuff::new(StuffParams::make_fake());
 
-        assert_eq!(a.params().name_by_index(2), Some("cherry-type"));
-        assert_eq!(a.params().count(), 3);
-        assert_eq!(a.params().name_by_index(a.params().count()), None);
+        assert_eq!(a.params().control_name_for_index(2), Some("cherry-type"));
+        assert_eq!(a.params().control_index_count(), 3);
+        assert_eq!(
+            a.params()
+                .control_name_for_index(a.params().control_index_count()),
+            None
+        );
 
         let a = MiscParams::make_fake();
 
-        assert_eq!(a.name_by_index(0), Some("cat-count"));
-        assert_eq!(a.count(), 2);
-        assert_eq!(a.name_by_index(a.count()), None);
+        assert_eq!(a.control_name_for_index(0), Some("cat-count"));
+        assert_eq!(a.control_index_count(), 2);
+        assert_eq!(a.control_name_for_index(a.control_index_count()), None);
     }
 
     #[test]
@@ -348,8 +353,8 @@ mod tests {
         for entity in entities.iter().filter(|e| e.is_controllable()) {
             eprintln!("adding controllable");
             let controllable = entity.as_controllable_ref().unwrap();
-            for index in 0..controllable.count() {
-                if let Some(point_name) = controllable.name_by_index(index) {
+            for index in 0..controllable.control_index_count() {
+                if let Some(point_name) = controllable.control_name_for_index(index) {
                     eprintln!("adding control point {}", point_name);
                 } else {
                     eprintln!("couldn't find name for control point #{}", index);
