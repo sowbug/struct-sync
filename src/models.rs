@@ -1,19 +1,17 @@
 use crate::{all_entities, Controllable, Controller};
 use groove_core::control::F32ControlValue;
-use groove_macros::Control;
 use std::str::FromStr;
 use struct_sync_macros::Synchronization;
 use strum::EnumCount;
-use strum_macros::{
-    Display, EnumCount as EnumCountMacro, EnumIter, EnumString, FromRepr, IntoStaticStr,
-};
+use strum_macros::{Display, EnumCount as EnumCountMacro, EnumString, FromRepr, IntoStaticStr};
 
 enum AppMessages {
     Wrapper(usize, EntityMessage),
 }
 
-#[derive(Clone, Copy, Debug, EnumCountMacro, FromRepr, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, EnumCountMacro, FromRepr, PartialEq)]
 pub enum CherryType {
+    #[default]
     Bing,
     Black,
     Cornelian,
@@ -30,17 +28,24 @@ impl CherryType {
         CherryType::from_repr((*self as usize + 1) % CherryType::COUNT).unwrap()
     }
 }
+impl From<F32ControlValue> for CherryType {
+    fn from(value: F32ControlValue) -> Self {
+        CherryType::from_repr((value.0 * CherryType::COUNT as f32) as usize).unwrap_or_default()
+    }
+}
+impl Into<F32ControlValue> for CherryType {
+    fn into(self) -> F32ControlValue {
+        F32ControlValue((self as usize as f32) / CherryType::COUNT as f32)
+    }
+}
 
-#[derive(Clone, Control, Debug, PartialEq, Synchronization)]
+#[derive(Clone, Debug, Default, PartialEq, Synchronization)]
 pub struct StuffParams {
     #[sync]
-    #[controllable]
     apple_count: usize,
     #[sync]
-    #[controllable]
     banana_quality: f32,
     #[sync]
-    #[controllable]
     cherry_type: CherryType,
 }
 impl Controller for StuffParams {}
@@ -79,18 +84,44 @@ impl StuffParams {
     fn set_cherry_type(&mut self, cherry_type: CherryType) {
         self.cherry_type = cherry_type;
     }
+}
+impl StuffParams {
+    pub fn message_for(
+        &self,
+        param_name: &str,
+        value: F32ControlValue,
+    ) -> Option<StuffParamsMessage> {
+        if let Ok(message) = StuffParamsMessage::from_str(param_name) {
+            match message {
+                StuffParamsMessage::AppleCount(_) => {
+                    return Some(StuffParamsMessage::AppleCount(value.into()));
+                }
+                StuffParamsMessage::StuffParams(_) => {}
+                StuffParamsMessage::BananaQuality(_) => {
+                    return Some(StuffParamsMessage::BananaQuality(value.into()));
+                }
+                StuffParamsMessage::CherryType(_) => {
+                    return Some(StuffParamsMessage::CherryType(value.into()));
+                }
+            }
+        }
+        None
+    }
 
-    pub fn set_control_apple_count(&mut self, v: F32ControlValue) {
-        self.set_and_propagate_apple_count((v.0 * 10.0) as usize);
+    pub fn control_name_for(&self, index: usize) -> Option<&'static str> {
+        if let Some(message) = StuffParamsMessage::from_repr(index + 1) {
+            Some(message.into())
+        } else {
+            None
+        }
     }
-    pub fn set_control_banana_quality(&mut self, v: F32ControlValue) {
-        self.set_and_propagate_banana_quality(v.0);
-    }
-    pub fn set_control_cherry_type(&mut self, v: F32ControlValue) {
-        self.set_and_propagate_cherry_type(CherryType::Black);
+
+    pub fn control_count(&self) -> usize {
+        StuffParamsMessage::COUNT - 1
     }
 }
 
+#[derive(Debug, PartialEq)]
 pub struct Stuff {
     params: StuffParams,
     computed_data: bool, // true = computed, false = purged
@@ -106,6 +137,10 @@ impl Stuff {
         r
     }
 
+    pub fn params(&self) -> &StuffParams {
+        &self.params
+    }
+
     fn precompute(&mut self) {
         self.computed_data = true;
     }
@@ -119,7 +154,7 @@ impl Stuff {
 
     fn set_apple_count(&mut self, count: usize) {
         self.clear_precomputed();
-        self.params.set_and_propagate_apple_count(count);
+        self.params.set_apple_count(count);
     }
 
     fn banana_quality(&self) -> f32 {
@@ -128,7 +163,7 @@ impl Stuff {
 
     fn set_banana_quality(&mut self, banana_quality: f32) {
         self.clear_precomputed();
-        self.params.set_and_propagate_banana_quality(banana_quality);
+        self.params.set_banana_quality(banana_quality);
     }
 
     fn cherry_type(&self) -> CherryType {
@@ -137,17 +172,15 @@ impl Stuff {
 
     fn set_cherry_type(&mut self, cherry_type: CherryType) {
         self.clear_precomputed();
-        self.params.set_and_propagate_cherry_type(cherry_type);
+        self.params.set_cherry_type(cherry_type);
     }
 }
 
-#[derive(Clone, Control, Debug, PartialEq, Synchronization)]
+#[derive(Clone, Debug, Default, PartialEq, Synchronization)]
 pub struct MiscParams {
     #[sync]
-    #[controllable]
     cat_count: usize,
     #[sync]
-    #[controllable]
     dog_count: usize,
 }
 impl MiscParams {
@@ -162,10 +195,11 @@ impl MiscParams {
     }
 
     pub fn set_control_cat_count(&mut self, v: F32ControlValue) {
-        self.set_and_propagate_cat_count((v.0 * 10.0) as usize);
+        self.set_cat_count((v.0 * 10.0) as usize);
     }
+
     pub fn set_control_dog_count(&mut self, v: F32ControlValue) {
-        self.set_and_propagate_dog_count((v.0 * 10.0) as usize);
+        self.set_dog_count((v.0 * 10.0) as usize);
     }
 
     pub fn cat_count(&self) -> usize {
@@ -212,14 +246,13 @@ all_entities! {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use groove_core::traits::Controllable;
 
     #[test]
     fn update_full() {
         let a = StuffParams::make_fake();
         let mut b = StuffParams::make_fake();
         assert_ne!(a, b);
-        b.handle_message(StuffParamsMessage::StuffParams(a.clone()));
+        b.update(StuffParamsMessage::StuffParams(a.clone()));
         assert_eq!(a, b);
     }
 
@@ -232,26 +265,65 @@ mod tests {
             cherry_type: a.cherry_type().next_cherry(),
         };
         assert_ne!(a, b);
-        if let Some(message) = a.set_and_propagate_apple_count(a.apple_count() + 1) {
-            b.handle_message(message);
+        let message = StuffParamsMessage::AppleCount(a.apple_count() + 1);
+        a.update(message.clone());
+        b.update(message);
+        assert_ne!(a, b);
+
+        let message = StuffParamsMessage::BananaQuality(b.banana_quality() / 3.0);
+        a.update(message.clone());
+        b.update(message);
+        assert_ne!(a, b);
+
+        let message = StuffParamsMessage::CherryType(a.cherry_type().next_cherry());
+        a.update(message.clone());
+        b.update(message);
+        assert_eq!(a, b);
+    }
+
+    #[test]
+    fn control_params() {
+        let a = Stuff::new(StuffParams::make_fake());
+        let mut b = Stuff::new(StuffParams {
+            apple_count: a.apple_count() + 1,
+            banana_quality: a.banana_quality() / 2.0,
+            cherry_type: a.cherry_type().next_cherry(),
+        });
+        assert_ne!(a, b);
+
+        if let Some(message) = b
+            .params()
+            .message_for("apple-count", a.apple_count().into())
+        {
+            b.params.update(message);
         }
         assert_ne!(a, b);
-        if let Some(message) = b.set_and_propagate_banana_quality(b.banana_quality() / 3.0) {
-            a.handle_message(message);
+        if let Some(message) = b
+            .params()
+            .message_for("banana-quality", a.banana_quality().into())
+        {
+            b.params.update(message);
         }
         assert_ne!(a, b);
-        if let Some(message) = a.set_and_propagate_cherry_type(a.cherry_type().next_cherry()) {
-            b.handle_message(message);
+        if let Some(message) = b
+            .params()
+            .message_for("cherry-type", a.cherry_type().into())
+        {
+            b.params.update(message);
         }
         assert_eq!(a, b);
     }
 
     #[test]
-    fn address_params_by_index() {
-        let stuff = Stuff::new(StuffParams::make_fake());
+    fn control_ergonomics() {
+        let a = Stuff::new(StuffParams::make_fake());
 
-        assert_eq!(stuff.params.control_name_for_index(2), "cherry-type");
-        assert_eq!(stuff.params.control_index_count(), 3);
+        assert_eq!(a.params().control_name_for(2), Some("cherry-type"));
+        assert_eq!(a.params().control_count(), 3);
+        assert_eq!(
+            a.params().control_name_for(a.params().control_count()),
+            None
+        );
     }
 
     #[test]
@@ -315,12 +387,12 @@ mod tests {
         match message {
             EntityMessage::StuffParams(message) => {
                 if let EntityParams::Stuff(entity) = entity {
-                    entity.handle_message(message);
+                    entity.update(message);
                 }
             }
             EntityMessage::MiscParams(message) => {
                 if let EntityParams::Misc(entity) = entity {
-                    entity.handle_message(message);
+                    entity.update(message);
                 }
             }
         }
@@ -329,5 +401,7 @@ mod tests {
     #[test]
     fn engine_usage() {
         let a = Stuff::new(StuffParams::make_fake());
+
+        //        let message = a.params.
     }
 }

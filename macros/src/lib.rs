@@ -75,7 +75,8 @@ fn parse_synchronization_data(
     }
 
     let enum_block = quote! {
-        #[derive(Clone, Display, Debug)]
+        #[derive(Clone, Display, Debug, EnumCountMacro, EnumString, FromRepr, IntoStaticStr)]
+        #[strum(serialize_all = "kebab-case")]
         pub enum #enum_name {
             #struct_name ( #struct_name ),
             #( #enum_variant_names ( #enum_variant_fields ) ),*
@@ -83,16 +84,7 @@ fn parse_synchronization_data(
     };
     let setter_block = quote! {
         impl #generics #struct_name #ty_generics {
-            #( pub fn #enum_set_method_names(&mut self, v: #enum_variant_fields)->Option<#enum_name>{let changed = self.#enum_snake_names() != v;self.#enum_set_method_original_names(v);if changed {Some(#enum_name::#enum_variant_names(v))} else {None}} )*
-
-            // pub fn get_name_by_index(&self, index: usize) -> Option<&'static str> {
-            //     if let Some(param) = #enum_name::from_repr(index) {
-            //         Some(param.into())
-            //     } else {
-            //         None
-            //     }
-            // }
-            pub fn handle_message(&mut self, message: #enum_name) {
+            pub fn update(&mut self, message: #enum_name) {
                 match message {
                     #enum_name::#struct_name(v) => *self = v,
                     #( #enum_name::#enum_variant_names(v) => self.#enum_set_method_original_names(v) ),*
