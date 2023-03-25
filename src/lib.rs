@@ -7,7 +7,7 @@ mod models;
 trait Controller {}
 trait Controllable {
     fn count(&self) -> usize;
-    fn name_by_index(&self, index: usize) -> &'static str;
+    fn name_by_index(&self, index: usize) -> Option<&'static str>;
 }
 
 #[macro_export]

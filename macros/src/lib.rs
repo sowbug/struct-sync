@@ -82,7 +82,7 @@ fn parse_synchronization_data(
             #( #enum_variant_names ( #enum_variant_fields ) ),*
         }
     };
-    let setter_block = quote! {
+    let impl_block = quote! {
         impl #generics #struct_name #ty_generics {
             pub fn update(&mut self, message: #enum_name) {
                 match message {
@@ -90,14 +90,43 @@ fn parse_synchronization_data(
                     #( #enum_name::#enum_variant_names(v) => self.#enum_set_method_original_names(v) ),*
                 }
             }
-        }
 
+            pub fn message_for(
+                &self,
+                param_name: &str,
+                value: F32ControlValue,
+            ) -> Option<#enum_name> {
+                if let Ok(message) = #enum_name::from_str(param_name) {
+                    match message {
+                        #enum_name::#struct_name(_) => {}
+                        #( #enum_name::#enum_variant_names(_) => {return Some(#enum_name::#enum_variant_names(value.into()));} )*
+                    }
+                }
+                None
+            }
+
+        }
+    };
+    let controllable_block = quote! {
+        impl Controllable for #generics #struct_name #ty_generics {
+            fn name_by_index(&self, index: usize) -> Option<&'static str> {
+                if let Some(message) = #enum_name::from_repr(index + 1) {
+                    Some(message.into())
+                } else {
+                    None
+                }
+            }
+            fn count(&self) -> usize {
+                #enum_name::COUNT - 1
+            }
+        }
     };
     quote! {
         #[automatically_derived]
         #enum_block
         #[automatically_derived]
-        #setter_block
-
+        #impl_block
+        #[automatically_derived]
+        #controllable_block
     }
 }

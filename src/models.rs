@@ -61,6 +61,14 @@ impl StuffParams {
         }
     }
 
+    fn make_different_from(other: &Self) -> Self {
+        Self {
+            apple_count: other.apple_count() + 1,
+            banana_quality: (other.banana_quality() + 0.777).fract(),
+            cherry_type: other.cherry_type().next_cherry(),
+        }
+    }
+
     fn apple_count(&self) -> usize {
         self.apple_count
     }
@@ -85,41 +93,6 @@ impl StuffParams {
         self.cherry_type = cherry_type;
     }
 }
-impl StuffParams {
-    pub fn message_for(
-        &self,
-        param_name: &str,
-        value: F32ControlValue,
-    ) -> Option<StuffParamsMessage> {
-        if let Ok(message) = StuffParamsMessage::from_str(param_name) {
-            match message {
-                StuffParamsMessage::AppleCount(_) => {
-                    return Some(StuffParamsMessage::AppleCount(value.into()));
-                }
-                StuffParamsMessage::StuffParams(_) => {}
-                StuffParamsMessage::BananaQuality(_) => {
-                    return Some(StuffParamsMessage::BananaQuality(value.into()));
-                }
-                StuffParamsMessage::CherryType(_) => {
-                    return Some(StuffParamsMessage::CherryType(value.into()));
-                }
-            }
-        }
-        None
-    }
-
-    pub fn control_name_for(&self, index: usize) -> Option<&'static str> {
-        if let Some(message) = StuffParamsMessage::from_repr(index + 1) {
-            Some(message.into())
-        } else {
-            None
-        }
-    }
-
-    pub fn control_count(&self) -> usize {
-        StuffParamsMessage::COUNT - 1
-    }
-}
 
 #[derive(Debug, PartialEq)]
 pub struct Stuff {
@@ -139,6 +112,10 @@ impl Stuff {
 
     pub fn params(&self) -> &StuffParams {
         &self.params
+    }
+
+    pub fn update(&mut self, message: StuffParamsMessage) {
+        self.params.update(message)
     }
 
     fn precompute(&mut self) {
@@ -218,22 +195,14 @@ impl MiscParams {
         self.dog_count = dog_count;
     }
 }
-impl Controllable for MiscParams {
-    fn count(&self) -> usize {
-        2
-    }
-
-    fn name_by_index(&self, index: usize) -> &'static str {
-        match index {
-            0 => "cat_count",
-            1 => "dog_count",
-            _ => panic!(),
-        }
-    }
-}
 
 struct Misc {
     params: MiscParams,
+}
+impl Misc {
+    pub fn update(&mut self, message: MiscParamsMessage) {
+        self.params.update(message)
+    }
 }
 
 use crate::register_impl;
@@ -250,7 +219,7 @@ mod tests {
     #[test]
     fn update_full() {
         let a = StuffParams::make_fake();
-        let mut b = StuffParams::make_fake();
+        let mut b = StuffParams::make_different_from(&a);
         assert_ne!(a, b);
         b.update(StuffParamsMessage::StuffParams(a.clone()));
         assert_eq!(a, b);
@@ -259,11 +228,28 @@ mod tests {
     #[test]
     fn update_incrementally() {
         let mut a = StuffParams::make_fake();
-        let mut b = StuffParams {
-            apple_count: a.apple_count + 1,
-            banana_quality: a.banana_quality / 2.0,
-            cherry_type: a.cherry_type().next_cherry(),
-        };
+        let mut b = StuffParams::make_different_from(&a);
+        assert_ne!(a, b);
+        let message = StuffParamsMessage::AppleCount(a.apple_count() + 1);
+        a.update(message.clone());
+        b.update(message);
+        assert_ne!(a, b);
+
+        let message = StuffParamsMessage::BananaQuality(b.banana_quality() / 3.0);
+        a.update(message.clone());
+        b.update(message);
+        assert_ne!(a, b);
+
+        let message = StuffParamsMessage::CherryType(a.cherry_type().next_cherry());
+        a.update(message.clone());
+        b.update(message);
+        assert_eq!(a, b);
+    }
+
+    #[test]
+    fn update_incrementally_with_full_structs() {
+        let mut a = Stuff::new(StuffParams::make_fake());
+        let mut b = Stuff::new(StuffParams::make_different_from(&a.params()));
         assert_ne!(a, b);
         let message = StuffParamsMessage::AppleCount(a.apple_count() + 1);
         a.update(message.clone());
@@ -318,12 +304,15 @@ mod tests {
     fn control_ergonomics() {
         let a = Stuff::new(StuffParams::make_fake());
 
-        assert_eq!(a.params().control_name_for(2), Some("cherry-type"));
-        assert_eq!(a.params().control_count(), 3);
-        assert_eq!(
-            a.params().control_name_for(a.params().control_count()),
-            None
-        );
+        assert_eq!(a.params().name_by_index(2), Some("cherry-type"));
+        assert_eq!(a.params().count(), 3);
+        assert_eq!(a.params().name_by_index(a.params().count()), None);
+
+        let a = MiscParams::make_fake();
+
+        assert_eq!(a.name_by_index(0), Some("cat-count"));
+        assert_eq!(a.count(), 2);
+        assert_eq!(a.name_by_index(a.count()), None);
     }
 
     #[test]
@@ -360,8 +349,11 @@ mod tests {
             eprintln!("adding controllable");
             let controllable = entity.as_controllable_ref().unwrap();
             for index in 0..controllable.count() {
-                let point_name = controllable.name_by_index(index);
-                eprintln!("adding control point {}", point_name);
+                if let Some(point_name) = controllable.name_by_index(index) {
+                    eprintln!("adding control point {}", point_name);
+                } else {
+                    eprintln!("couldn't find name for control point #{}", index);
+                }
             }
         }
     }
