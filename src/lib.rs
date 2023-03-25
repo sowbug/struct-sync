@@ -1,113 +1,97 @@
-use struct_sync_macros::Synchronization;
-use strum::EnumCount;
-use strum_macros::{Display, EnumCount as EnumCountMacro, FromRepr};
+#[allow(dead_code)]
+#[allow(unused_variables)]
+mod models;
 
 // use `cargo expand` to see what the macro is generating.
 
-#[derive(Clone, Copy, Debug, EnumCountMacro, FromRepr, PartialEq)]
-pub enum CherryType {
-    Bing,
-    Black,
-    Cornelian,
-    Maraschino,
-    QueenAnne,
-    Ranier,
-    Sour,
-    Sweet,
-    Van,
-    Yellow,
-}
-impl CherryType {
-    fn next_cherry(&self) -> Self {
-        CherryType::from_repr((*self as usize + 1) % CherryType::COUNT).unwrap()
-    }
+trait Controller {}
+trait Controllable {
+    fn count(&self) -> usize;
+    fn name_by_index(&self, index: usize) -> &'static str;
 }
 
-#[derive(Synchronization, Clone, Debug, PartialEq)]
-pub struct Stuff {
-    #[sync]
-    apple_count: usize,
-    #[sync]
-    banana_quality: f32,
-    #[sync]
-    cherry_type: CherryType,
-}
-
-impl Stuff {
-    fn apple_count(&self) -> usize {
-        self.apple_count
-    }
-
-    //  #[sync_setter]
-    fn set_apple_count(&mut self, count: usize) {
-        self.apple_count = count;
-    }
-
-    fn make_fake() -> Self {
-        use rand::Rng;
-
-        let mut rng = rand::thread_rng();
-        Self {
-            apple_count: rng.gen_range(5..1000),
-            banana_quality: rng.gen_range(0.0..1.0),
-            cherry_type: CherryType::from_repr(rng.gen_range(0..CherryType::COUNT)).unwrap(),
+#[macro_export]
+macro_rules! register_impl {
+    ($trait_:ident for $ty:ty, true) => {
+        impl<'a> MaybeImplements<'a, dyn $trait_> for $ty {
+            fn as_trait_ref(&self) -> Option<&(dyn $trait_ + 'static)> {
+                Some(self)
+            }
+            fn as_trait_mut(&mut self) -> Option<&mut (dyn $trait_ + 'static)> {
+                Some(self)
+            }
         }
-    }
-
-    fn banana_quality(&self) -> f32 {
-        self.banana_quality
-    }
-
-    fn set_banana_quality(&mut self, banana_quality: f32) {
-        self.banana_quality = banana_quality;
-    }
-
-    fn cherry_type(&self) -> CherryType {
-        self.cherry_type
-    }
-
-    fn set_cherry_type(&mut self, cherry_type: CherryType) {
-        self.cherry_type = cherry_type;
-    }
+    };
+    ($trait_:ident for $ty:ty, false) => {
+        impl<'a> MaybeImplements<'a, dyn $trait_> for $ty {
+            fn as_trait_ref(&self) -> Option<&(dyn $trait_ + 'static)> {
+                None
+            }
+            fn as_trait_mut(&mut self) -> Option<&mut (dyn $trait_ + 'static)> {
+                None
+            }
+        }
+    };
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn full_update() {
-        let a = Stuff::make_fake();
-        let mut b = Stuff::make_fake();
-        assert_ne!(a, b);
-        eprintln!("A: {:?}\r\nB: {:?}\r\n", a, b);
-
-        b.handle_message(StuffMessage::Stuff(a.clone()));
-        assert_eq!(a, b);
-        eprintln!("A: {:?}\r\nB: {:?}\r\n", a, b);
-    }
-
-    #[test]
-    fn incremental_updates() {
-        let mut a = Stuff::make_fake();
-        let mut b = Stuff::make_fake();
-        assert_ne!(a, b);
-        eprintln!("A: {:?}\r\nB: {:?}\r\n", a, b);
-
-        if let Some(message) = a.set_and_propagate_apple_count(a.apple_count() + 1) {
-            b.handle_message(message);
+#[macro_export]
+macro_rules! all_entities {
+    () => {};
+    ($($entity:ident; $params:tt; $message:ident; $is_controller:tt; $is_controllable:tt ,)*) => {
+        pub(crate) enum EntityMessage {
+            $( $params($message) ),*
         }
-        assert_ne!(a, b);
-        eprintln!("A: {:?}\r\nB: {:?}\r\n", a, b);
-        if let Some(message) = a.set_and_propagate_banana_quality(a.banana_quality() / 2.0) {
-            b.handle_message(message);
+        pub(crate) enum EntityParams {
+            $( $entity(Box<$params>) ),*
         }
-        assert_ne!(a, b);
-        eprintln!("A: {:?}\r\nB: {:?}\r\n", a, b);
-        if let Some(message) = a.set_and_propagate_cherry_type(a.cherry_type().next_cherry()) {
-            b.handle_message(message);
+        impl EntityParams {
+            fn is_controller(&self) -> bool {
+                self.as_controller_ref().is_some()
+            }
+            fn is_controllable(&self) -> bool {
+                self.as_controllable_ref().is_some()
+            }
+            fn as_controller_ref(&self) -> Option<&(dyn Controller + 'static)> {
+                match self {
+                    EntityParams::Stuff(e) => e.as_trait_ref(),
+                    EntityParams::Misc(e) => e.as_trait_ref(),
+                }
+            }
+            fn as_controller_mut(&mut self) -> Option<&mut (dyn Controller + 'static)> {
+                match self {
+                    EntityParams::Stuff(e) => e.as_trait_mut(),
+                    EntityParams::Misc(e) => e.as_trait_mut(),
+                }
+            }
+            fn as_controllable_ref(&self) -> Option<&(dyn Controllable + 'static)> {
+                match self {
+                    EntityParams::Stuff(e) => e.as_trait_ref(),
+                    EntityParams::Misc(e) => e.as_trait_ref(),
+                }
+            }
+            fn as_controllable_mut(&mut self) -> Option<&mut (dyn Controllable + 'static)> {
+                match self {
+                    EntityParams::Stuff(e) => e.as_trait_mut(),
+                    EntityParams::Misc(e) => e.as_trait_mut(),
+                }
+            }
         }
-        assert_eq!(a, b);
-        eprintln!("A: {:?}\r\nB: {:?}\r\n", a, b);
-    }
+        trait MaybeImplements<'a, Trait: ?Sized> {
+            fn as_trait_ref(&'a self) -> Option<&'a Trait>;
+            fn as_trait_mut(&mut self) -> Option<&mut Trait>;
+        }
+        $( register_impl!(Controller for $params, $is_controller); )*
+        $( register_impl!(Controllable for $params, $is_controllable); )*
+    };
 }
+
+// The view side needs getters/setters
+//   introspection (count of controllable points, names)
+// Propagation to engine.
+// It will handle messages from the engine side.
+// It will use Iced messages in GUI widgets.
+//
+// The engine side needs getters/setters
+// propagation to view
+// It will handle messages from the view side
+// It uses its control apparatus to automate controls
