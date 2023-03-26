@@ -1,4 +1,4 @@
-use crate::{all_entities, Controller};
+use crate::all_entities;
 use groove_core::{control::F32ControlValue, traits::Controllable};
 use std::str::FromStr;
 use struct_sync_macros::Synchronization;
@@ -48,7 +48,6 @@ pub struct StuffParams {
     #[sync]
     cherry_type: CherryType,
 }
-impl Controller for StuffParams {}
 impl StuffParams {
     fn make_fake() -> Self {
         use rand::Rng;

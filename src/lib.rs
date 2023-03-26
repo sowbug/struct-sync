@@ -1,10 +1,9 @@
 #[allow(dead_code)]
 #[allow(unused_variables)]
+
 mod models;
 
 // use `cargo expand` to see what the macro is generating.
-
-trait Controller {}
 
 #[macro_export]
 macro_rules! register_impl {
@@ -42,33 +41,23 @@ macro_rules! all_entities {
         }
         impl EntityParams {
             fn is_controller(&self) -> bool {
-                self.as_controller_ref().is_some()
-            }
-            fn is_controllable(&self) -> bool {
-                self.as_controllable_ref().is_some()
-            }
-            fn as_controller_ref(&self) -> Option<&(dyn Controller + 'static)> {
                 match self {
-                    EntityParams::Stuff(e) => e.as_trait_ref(),
-                    EntityParams::Misc(e) => e.as_trait_ref(),
+                    $( EntityParams::$entity(e) => $is_controller, )*
                 }
             }
-            fn as_controller_mut(&mut self) -> Option<&mut (dyn Controller + 'static)> {
+            fn is_controllable(&self) -> bool {
                 match self {
-                    EntityParams::Stuff(e) => e.as_trait_mut(),
-                    EntityParams::Misc(e) => e.as_trait_mut(),
+                    $( EntityParams::$entity(e) => $is_controllable, )*
                 }
             }
             fn as_controllable_ref(&self) -> Option<&(dyn Controllable + 'static)> {
                 match self {
-                    EntityParams::Stuff(e) => e.as_trait_ref(),
-                    EntityParams::Misc(e) => e.as_trait_ref(),
+                    $( EntityParams::$entity(e) => e.as_trait_ref(), )*
                 }
             }
             fn as_controllable_mut(&mut self) -> Option<&mut (dyn Controllable + 'static)> {
                 match self {
-                    EntityParams::Stuff(e) => e.as_trait_mut(),
-                    EntityParams::Misc(e) => e.as_trait_mut(),
+                    $( EntityParams::$entity(e) => e.as_trait_mut(), )*
                 }
             }
         }
@@ -76,7 +65,6 @@ macro_rules! all_entities {
             fn as_trait_ref(&'a self) -> Option<&'a Trait>;
             fn as_trait_mut(&mut self) -> Option<&mut Trait>;
         }
-        $( register_impl!(Controller for $params, $is_controller); )*
         $( register_impl!(Controllable for $params, $is_controllable); )*
     };
 }
