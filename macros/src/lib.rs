@@ -91,18 +91,39 @@ fn parse_synchronization_data(
                 }
             }
 
-            pub fn message_for(
+            pub fn message_for_name(
                 &self,
                 param_name: &str,
                 value: groove_core::control::F32ControlValue,
             ) -> Option<#enum_name> {
                 if let Ok(message) = #enum_name::from_str(param_name) {
-                    match message {
-                        #enum_name::#struct_name(_) => {}
-                        #( #enum_name::#enum_variant_names(_) => {return Some(#enum_name::#enum_variant_names(value.into()));} )*
-                    }
+                    self.parameterized_message_from_message(message, value)
+                } else {
+                    None
                 }
-                None
+            }
+
+            pub fn message_for_index(
+                &self,
+                param_index: usize,
+                value: groove_core::control::F32ControlValue,
+            ) -> Option<#enum_name> {
+                if let Some(message) = #enum_name::from_repr(param_index + 1) {
+                    self.parameterized_message_from_message(message, value)
+                } else {
+                    None
+                }
+            }
+
+            pub fn parameterized_message_from_message(
+                &self,
+                message: #enum_name,
+                value: groove_core::control::F32ControlValue,
+            ) -> Option<#enum_name> {
+                match message {
+                    #enum_name::#struct_name(_) => {return None;}
+                    #( #enum_name::#enum_variant_names(_) => {return Some(#enum_name::#enum_variant_names(value.into()));} )*
+                }
             }
 
         }

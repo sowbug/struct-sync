@@ -268,7 +268,7 @@ mod tests {
     }
 
     #[test]
-    fn control_params() {
+    fn control_params_by_name() {
         let a = Stuff::new(StuffParams::make_fake());
         let mut b = Stuff::new(StuffParams {
             apple_count: a.apple_count() + 1,
@@ -279,22 +279,49 @@ mod tests {
 
         if let Some(message) = b
             .params()
-            .message_for("apple-count", a.apple_count().into())
+            .message_for_name("apple-count", a.apple_count().into())
         {
             b.params.update(message);
         }
         assert_ne!(a, b);
         if let Some(message) = b
             .params()
-            .message_for("banana-quality", a.banana_quality().into())
+            .message_for_name("banana-quality", a.banana_quality().into())
         {
             b.params.update(message);
         }
         assert_ne!(a, b);
         if let Some(message) = b
             .params()
-            .message_for("cherry-type", a.cherry_type().into())
+            .message_for_name("cherry-type", a.cherry_type().into())
         {
+            b.params.update(message);
+        }
+        assert_eq!(a, b);
+    }
+
+    #[test]
+    fn control_params_by_index() {
+        let a = Stuff::new(StuffParams::make_fake());
+        let mut b = Stuff::new(StuffParams {
+            apple_count: a.apple_count() + 1,
+            banana_quality: a.banana_quality() / 2.0,
+            cherry_type: a.cherry_type().next_cherry(),
+        });
+        assert_ne!(a, b);
+
+        // We exclude the full message from the index.
+        assert_eq!(a.params().control_index_count(), 3);
+
+        if let Some(message) = b.params().message_for_index(0, a.apple_count().into()) {
+            b.params.update(message);
+        }
+        assert_ne!(a, b);
+        if let Some(message) = b.params().message_for_index(1, a.banana_quality().into()) {
+            b.params.update(message);
+        }
+        assert_ne!(a, b);
+        if let Some(message) = b.params().message_for_index(2, a.cherry_type().into()) {
             b.params.update(message);
         }
         assert_eq!(a, b);
@@ -396,8 +423,24 @@ mod tests {
 
     #[test]
     fn engine_usage() {
-        let a = Stuff::new(StuffParams::make_fake());
+        let mut a = Stuff::new(StuffParams::make_fake());
 
-        //        let message = a.params.
+        assert_ne!(a.apple_count(), 50);
+        if let Some(message) = a.params.message_for_index(0, 50.0.into()) {
+            a.update(message);
+        }
+        assert_eq!(a.apple_count(), 50);
+
+        assert_ne!(a.banana_quality(), 0.14159265);
+        if let Some(message) = a.params.message_for_index(1, 0.14159265.into()) {
+            a.update(message);
+        }
+        assert_eq!(a.banana_quality(), 0.14159265);
+
+        let next_cherry = a.cherry_type().next_cherry();
+        if let Some(message) = a.params.message_for_index(2, next_cherry.into()) {
+            a.update(message);
+        }
+        assert_eq!(a.cherry_type(), next_cherry);
     }
 }
