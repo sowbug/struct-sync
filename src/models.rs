@@ -1,9 +1,6 @@
-use groove_core::{
-    control::F32ControlValue,
-    traits::{Controllable, HasUid},
-};
-use groove_macros::{all_entities, boxed_entity_enum_and_common_crackers, register_impl};
-use groove_proc_macros::{Synchronization, Uid};
+use groove_core::{control::F32ControlValue, traits::HasUid};
+use groove_macros::all_entities;
+use groove_proc_macros::{Everything, Synchronization, Uid};
 use std::str::FromStr;
 use strum::EnumCount;
 use strum_macros::{Display, EnumCount as EnumCountMacro, EnumString, FromRepr, IntoStaticStr};
@@ -178,9 +175,12 @@ all_entities! {
     Stuff; StuffParams; StuffParamsMessage; true; false,
     Misc; MiscParams; MiscParamsMessage; false; true,
 }
-boxed_entity_enum_and_common_crackers! {
-    Stuff: Stuff,
-    Misc: Misc,
+
+type Moosage = OtherEntityMessage;
+#[derive(Everything)]
+enum Models {
+    Stuff(Stuff),
+    Misc(Misc),
 }
 
 #[cfg(test)]
@@ -360,7 +360,7 @@ mod tests {
         }
         for entity in entities.iter().filter(|e| e.is_controllable()) {
             eprintln!("adding controllable");
-            let controllable = entity.as_controllable_ref().unwrap();
+            let controllable = entity.as_controllable().unwrap();
             for index in 0..controllable.control_index_count() {
                 if let Some(point_name) = controllable.control_name_for_index(index) {
                     eprintln!("adding control point {}", point_name);
