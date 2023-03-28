@@ -220,23 +220,6 @@ impl Misc {
         &self.params
     }
 }
-// impl Controllable for Misc {
-//     fn control_index_count(&self) -> usize {
-//         unimplemented!()
-//     }
-
-//     fn control_index_for_name(&self, name: &str) -> usize {
-//         unimplemented!("Controllable trait methods are implemented by a macro")
-//     }
-
-//     fn control_name_for_index(&self, index: usize) -> Option<&'static str> {
-//         unimplemented!()
-//     }
-
-//     fn set_by_control_index(&mut self, index: usize, value: F32ControlValue) {
-//         unimplemented!()
-//     }
-// }
 
 all_entities! {
     // struct; params; message; is_controller; is_controllable,
@@ -471,61 +454,6 @@ mod tests {
             }
         }
     }
-
-    // impl Entity {
-    //     pub fn message_for(
-    //         &self,
-    //         param_index: usize,
-    //         value: F32ControlValue,
-    //     ) -> Option<EParamsMessage> {
-    //         match self {
-    //             Entity::Stuff(entity) => {
-    //                 if let Some(message) = entity.params().message_for_index(param_index, value) {
-    //                     return Some(EParamsMessage::StuffParamsMessage(message));
-    //                 }
-    //             }
-    //             Entity::Misc(entity) => {
-    //                 if let Some(message) = entity.params().message_for_index(param_index, value) {
-    //                     return Some(EParamsMessage::MiscParamsMessage(message));
-    //                 }
-    //             }
-    //         }
-    //         None
-    //     }
-    // }
-
-    // enum EParams {
-    //     Stuff(Box<StuffParams>),
-    //     Misc(Box<MiscParams>),
-    // }
-    // impl EParams {
-    //     pub fn update(&mut self, message: EParamsMessage) {
-    //         match self {
-    //             EParams::Stuff(params) => {
-    //                 if let EParamsMessage::StuffParamsMessage(message) = message {
-    //                     params.update(message);
-    //                 }
-    //             }
-    //             EParams::Misc(params) => todo!(),
-    //         }
-    //     }
-
-    //     pub fn message_for(
-    //         &self,
-    //         param_index: usize,
-    //         value: F32ControlValue,
-    //     ) -> Option<EParamsMessage> {
-    //         match self {
-    //             EParams::Stuff(entity) => {
-    //                 if let Some(message) = entity.message_for_index(param_index, value) {
-    //                     return Some(EParamsMessage::StuffParamsMessage(message));
-    //                 }
-    //             }
-    //             EParams::Misc(entity) => todo!(),
-    //         }
-    //         None
-    //     }
-    // }
 
     #[test]
     fn engine_usage() {
