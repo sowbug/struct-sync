@@ -70,30 +70,6 @@ impl StuffParams {
             cherry_type: other.cherry_type().next_cherry(),
         }
     }
-
-    fn apple_count(&self) -> usize {
-        self.apple_count
-    }
-
-    fn set_apple_count(&mut self, count: usize) {
-        self.apple_count = count;
-    }
-
-    fn banana_quality(&self) -> f32 {
-        self.banana_quality
-    }
-
-    fn set_banana_quality(&mut self, banana_quality: f32) {
-        self.banana_quality = banana_quality;
-    }
-
-    fn cherry_type(&self) -> CherryType {
-        self.cherry_type
-    }
-
-    fn set_cherry_type(&mut self, cherry_type: CherryType) {
-        self.cherry_type = cherry_type;
-    }
 }
 
 #[derive(Debug, PartialEq, Uid)]
@@ -173,30 +149,6 @@ impl MiscParams {
             cat_count: rng.gen_range(5..1000),
             dog_count: rng.gen_range(5..1000),
         }
-    }
-
-    pub fn set_control_cat_count(&mut self, v: F32ControlValue) {
-        self.set_cat_count((v.0 * 10.0) as usize);
-    }
-
-    pub fn set_control_dog_count(&mut self, v: F32ControlValue) {
-        self.set_dog_count((v.0 * 10.0) as usize);
-    }
-
-    pub fn cat_count(&self) -> usize {
-        self.cat_count
-    }
-
-    pub fn set_cat_count(&mut self, cat_count: usize) {
-        self.cat_count = cat_count;
-    }
-
-    pub fn dog_count(&self) -> usize {
-        self.dog_count
-    }
-
-    pub fn set_dog_count(&mut self, dog_count: usize) {
-        self.dog_count = dog_count;
     }
 }
 
@@ -289,12 +241,10 @@ mod tests {
 
     #[test]
     fn control_params_by_name() {
-        let a = Stuff::new(StuffParams::make_fake());
-        let mut b = Stuff::new(StuffParams {
-            apple_count: a.params().apple_count() + 1,
-            banana_quality: a.params().banana_quality() / 2.0,
-            cherry_type: a.params().cherry_type().next_cherry(),
-        });
+        let a_params = StuffParams::make_fake();
+        let b_params = StuffParams::make_different_from(&a_params);
+        let a = Stuff::new(a_params);
+        let mut b = Stuff::new(b_params);
         assert_ne!(a, b);
 
         if let Some(message) = b
@@ -322,12 +272,10 @@ mod tests {
 
     #[test]
     fn control_params_by_index() {
-        let a = Stuff::new(StuffParams::make_fake());
-        let mut b = Stuff::new(StuffParams {
-            apple_count: a.params().apple_count() + 1,
-            banana_quality: a.params().banana_quality() / 2.0,
-            cherry_type: a.params().cherry_type().next_cherry(),
-        });
+        let a_params = StuffParams::make_fake();
+        let b_params = StuffParams::make_different_from(&a_params);
+        let a = Stuff::new(a_params);
+        let mut b = Stuff::new(b_params);
         assert_ne!(a, b);
 
         // We exclude the full message from the index.
