@@ -1,12 +1,15 @@
-use crate::all_entities;
-use groove_core::{control::F32ControlValue, traits::Controllable};
+use groove_core::{
+    control::F32ControlValue,
+    traits::{Controllable, HasUid},
+};
+use groove_macros::{all_entities, boxed_entity_enum_and_common_crackers, register_impl};
+use groove_proc_macros::{Synchronization, Uid};
 use std::str::FromStr;
-use struct_sync_macros::Synchronization;
 use strum::EnumCount;
 use strum_macros::{Display, EnumCount as EnumCountMacro, EnumString, FromRepr, IntoStaticStr};
 
 enum AppMessages {
-    Wrapper(usize, EntityMessage),
+    Wrapper(usize, OtherEntityMessage),
 }
 
 #[derive(Clone, Copy, Debug, Default, EnumCountMacro, FromRepr, PartialEq)]
@@ -93,8 +96,9 @@ impl StuffParams {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Uid)]
 pub struct Stuff {
+    uid: usize,
     params: StuffParams,
     computed_data: bool, // true = computed, false = purged
 }
@@ -102,6 +106,7 @@ pub struct Stuff {
 impl Stuff {
     pub fn new(params: StuffParams) -> Self {
         let mut r = Self {
+            uid: Default::default(),
             params,
             computed_data: false,
         };
@@ -124,32 +129,32 @@ impl Stuff {
         self.computed_data = false;
     }
 
-    fn apple_count(&self) -> usize {
-        self.params.apple_count()
-    }
+    // fn apple_count(&self) -> usize {
+    //     self.params.apple_count()
+    // }
 
     fn set_apple_count(&mut self, count: usize) {
         self.clear_precomputed();
         self.params.set_apple_count(count);
     }
 
-    fn banana_quality(&self) -> f32 {
-        self.params.banana_quality()
-    }
+    // fn banana_quality(&self) -> f32 {
+    //     self.params.banana_quality()
+    // }
 
-    fn set_banana_quality(&mut self, banana_quality: f32) {
-        self.clear_precomputed();
-        self.params.set_banana_quality(banana_quality);
-    }
+    // fn set_banana_quality(&mut self, banana_quality: f32) {
+    //     self.clear_precomputed();
+    //     self.params.set_banana_quality(banana_quality);
+    // }
 
-    fn cherry_type(&self) -> CherryType {
-        self.params.cherry_type()
-    }
+    // fn cherry_type(&self) -> CherryType {
+    //     self.params.cherry_type()
+    // }
 
-    fn set_cherry_type(&mut self, cherry_type: CherryType) {
-        self.clear_precomputed();
-        self.params.set_cherry_type(cherry_type);
-    }
+    // fn set_cherry_type(&mut self, cherry_type: CherryType) {
+    //     self.clear_precomputed();
+    //     self.params.set_cherry_type(cherry_type);
+    // }
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Synchronization)]
@@ -195,20 +200,52 @@ impl MiscParams {
     }
 }
 
-struct Misc {
+#[derive(Debug, Uid)]
+pub struct Misc {
+    uid: usize,
     params: MiscParams,
 }
 impl Misc {
+    pub fn new_with(params: MiscParams) -> Self {
+        Self {
+            uid: Default::default(),
+            params: params,
+        }
+    }
     pub fn update(&mut self, message: MiscParamsMessage) {
         self.params.update(message)
     }
-}
 
-use crate::register_impl;
+    fn params(&self) -> &MiscParams {
+        &self.params
+    }
+}
+// impl Controllable for Misc {
+//     fn control_index_count(&self) -> usize {
+//         unimplemented!()
+//     }
+
+//     fn control_index_for_name(&self, name: &str) -> usize {
+//         unimplemented!("Controllable trait methods are implemented by a macro")
+//     }
+
+//     fn control_name_for_index(&self, index: usize) -> Option<&'static str> {
+//         unimplemented!()
+//     }
+
+//     fn set_by_control_index(&mut self, index: usize, value: F32ControlValue) {
+//         unimplemented!()
+//     }
+// }
+
 all_entities! {
     // struct; params; message; is_controller; is_controllable,
     Stuff; StuffParams; StuffParamsMessage; true; false,
     Misc; MiscParams; MiscParamsMessage; false; true,
+}
+boxed_entity_enum_and_common_crackers! {
+    Stuff: Stuff,
+    Misc: Misc,
 }
 
 #[cfg(test)]
@@ -251,17 +288,17 @@ mod tests {
         let mut a = Stuff::new(StuffParams::make_fake());
         let mut b = Stuff::new(StuffParams::make_different_from(&a.params()));
         assert_ne!(a, b);
-        let message = StuffParamsMessage::AppleCount(a.apple_count() + 1);
+        let message = StuffParamsMessage::AppleCount(a.params().apple_count() + 1);
         a.update(message.clone());
         b.update(message);
         assert_ne!(a, b);
 
-        let message = StuffParamsMessage::BananaQuality(b.banana_quality() / 3.0);
+        let message = StuffParamsMessage::BananaQuality(b.params().banana_quality() / 3.0);
         a.update(message.clone());
         b.update(message);
         assert_ne!(a, b);
 
-        let message = StuffParamsMessage::CherryType(a.cherry_type().next_cherry());
+        let message = StuffParamsMessage::CherryType(a.params().cherry_type().next_cherry());
         a.update(message.clone());
         b.update(message);
         assert_eq!(a, b);
@@ -271,29 +308,29 @@ mod tests {
     fn control_params_by_name() {
         let a = Stuff::new(StuffParams::make_fake());
         let mut b = Stuff::new(StuffParams {
-            apple_count: a.apple_count() + 1,
-            banana_quality: a.banana_quality() / 2.0,
-            cherry_type: a.cherry_type().next_cherry(),
+            apple_count: a.params().apple_count() + 1,
+            banana_quality: a.params().banana_quality() / 2.0,
+            cherry_type: a.params().cherry_type().next_cherry(),
         });
         assert_ne!(a, b);
 
         if let Some(message) = b
             .params()
-            .message_for_name("apple-count", a.apple_count().into())
+            .message_for_name("apple-count", a.params().apple_count().into())
         {
             b.params.update(message);
         }
         assert_ne!(a, b);
         if let Some(message) = b
             .params()
-            .message_for_name("banana-quality", a.banana_quality().into())
+            .message_for_name("banana-quality", a.params().banana_quality().into())
         {
             b.params.update(message);
         }
         assert_ne!(a, b);
         if let Some(message) = b
             .params()
-            .message_for_name("cherry-type", a.cherry_type().into())
+            .message_for_name("cherry-type", a.params().cherry_type().into())
         {
             b.params.update(message);
         }
@@ -304,24 +341,33 @@ mod tests {
     fn control_params_by_index() {
         let a = Stuff::new(StuffParams::make_fake());
         let mut b = Stuff::new(StuffParams {
-            apple_count: a.apple_count() + 1,
-            banana_quality: a.banana_quality() / 2.0,
-            cherry_type: a.cherry_type().next_cherry(),
+            apple_count: a.params().apple_count() + 1,
+            banana_quality: a.params().banana_quality() / 2.0,
+            cherry_type: a.params().cherry_type().next_cherry(),
         });
         assert_ne!(a, b);
 
         // We exclude the full message from the index.
         assert_eq!(a.params().control_index_count(), 3);
 
-        if let Some(message) = b.params().message_for_index(0, a.apple_count().into()) {
+        if let Some(message) = b
+            .params()
+            .message_for_index(0, a.params().apple_count().into())
+        {
             b.params.update(message);
         }
         assert_ne!(a, b);
-        if let Some(message) = b.params().message_for_index(1, a.banana_quality().into()) {
+        if let Some(message) = b
+            .params()
+            .message_for_index(1, a.params().banana_quality().into())
+        {
             b.params.update(message);
         }
         assert_ne!(a, b);
-        if let Some(message) = b.params().message_for_index(2, a.cherry_type().into()) {
+        if let Some(message) = b
+            .params()
+            .message_for_index(2, a.params().cherry_type().into())
+        {
             b.params.update(message);
         }
         assert_eq!(a, b);
@@ -350,6 +396,11 @@ mod tests {
     fn core_struct_gets_notifications() {
         let mut stuff = Stuff::new(StuffParams::make_fake());
 
+        // This setter is unusual, because it's on the main struct. We have it
+        // here to show how it could be done, but for now we think that the
+        // better way to change params via a main struct is to use update().
+        // (Note that we haven't yet needed a params_mut(), and I'd like to keep
+        // it that way as long as I can.)
         assert!(stuff.computed_data);
         stuff.set_apple_count(stuff.params.apple_count() + 10);
         assert!(!stuff.computed_data);
@@ -403,17 +454,17 @@ mod tests {
 
         // Handle an incoming message
         let message = StuffParamsMessage::AppleCount(45);
-        let wrapped_message = AppMessages::Wrapper(1, EntityMessage::StuffParams(message));
+        let wrapped_message = AppMessages::Wrapper(1, OtherEntityMessage::StuffParams(message));
 
         let AppMessages::Wrapper(uid, message) = wrapped_message;
         let entity = &mut entities[uid];
         match message {
-            EntityMessage::StuffParams(message) => {
+            OtherEntityMessage::StuffParams(message) => {
                 if let EntityParams::Stuff(entity) = entity {
                     entity.update(message);
                 }
             }
-            EntityMessage::MiscParams(message) => {
+            OtherEntityMessage::MiscParams(message) => {
                 if let EntityParams::Misc(entity) = entity {
                     entity.update(message);
                 }
@@ -421,26 +472,81 @@ mod tests {
         }
     }
 
+    // impl Entity {
+    //     pub fn message_for(
+    //         &self,
+    //         param_index: usize,
+    //         value: F32ControlValue,
+    //     ) -> Option<EParamsMessage> {
+    //         match self {
+    //             Entity::Stuff(entity) => {
+    //                 if let Some(message) = entity.params().message_for_index(param_index, value) {
+    //                     return Some(EParamsMessage::StuffParamsMessage(message));
+    //                 }
+    //             }
+    //             Entity::Misc(entity) => {
+    //                 if let Some(message) = entity.params().message_for_index(param_index, value) {
+    //                     return Some(EParamsMessage::MiscParamsMessage(message));
+    //                 }
+    //             }
+    //         }
+    //         None
+    //     }
+    // }
+
+    // enum EParams {
+    //     Stuff(Box<StuffParams>),
+    //     Misc(Box<MiscParams>),
+    // }
+    // impl EParams {
+    //     pub fn update(&mut self, message: EParamsMessage) {
+    //         match self {
+    //             EParams::Stuff(params) => {
+    //                 if let EParamsMessage::StuffParamsMessage(message) = message {
+    //                     params.update(message);
+    //                 }
+    //             }
+    //             EParams::Misc(params) => todo!(),
+    //         }
+    //     }
+
+    //     pub fn message_for(
+    //         &self,
+    //         param_index: usize,
+    //         value: F32ControlValue,
+    //     ) -> Option<EParamsMessage> {
+    //         match self {
+    //             EParams::Stuff(entity) => {
+    //                 if let Some(message) = entity.message_for_index(param_index, value) {
+    //                     return Some(EParamsMessage::StuffParamsMessage(message));
+    //                 }
+    //             }
+    //             EParams::Misc(entity) => todo!(),
+    //         }
+    //         None
+    //     }
+    // }
+
     #[test]
     fn engine_usage() {
-        let mut a = Stuff::new(StuffParams::make_fake());
+        let a = Stuff::new(StuffParams::make_fake());
+        let next_cherry = a.params().cherry_type().next_cherry();
+        let mut ea = Entity::Stuff(Box::new(a));
 
-        assert_ne!(a.apple_count(), 50);
-        if let Some(message) = a.params.message_for_index(0, 50.0.into()) {
-            a.update(message);
+        if let Some(message) = ea.message_for(0, 50.0.into()) {
+            ea.update(message);
         }
-        assert_eq!(a.apple_count(), 50);
+        if let Some(message) = ea.message_for(1, 0.14159265.into()) {
+            ea.update(message);
+        }
+        if let Some(message) = ea.message_for(2, next_cherry.into()) {
+            ea.update(message);
+        }
 
-        assert_ne!(a.banana_quality(), 0.14159265);
-        if let Some(message) = a.params.message_for_index(1, 0.14159265.into()) {
-            a.update(message);
+        if let Entity::Stuff(a) = ea {
+            assert_eq!(a.params().apple_count(), 50);
+            assert_eq!(a.params().banana_quality(), 0.14159265);
+            assert_eq!(a.params().cherry_type(), next_cherry);
         }
-        assert_eq!(a.banana_quality(), 0.14159265);
-
-        let next_cherry = a.cherry_type().next_cherry();
-        if let Some(message) = a.params.message_for_index(2, next_cherry.into()) {
-            a.update(message);
-        }
-        assert_eq!(a.cherry_type(), next_cherry);
     }
 }
