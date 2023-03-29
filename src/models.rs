@@ -1,6 +1,6 @@
 use groove_core::{control::F32ControlValue, traits::HasUid};
 use groove_proc_macros::{Everything, Nano, Uid};
-use std::str::FromStr;
+use std::{marker::PhantomData, str::FromStr};
 use strum::EnumCount;
 use strum_macros::{Display, EnumCount as EnumCountMacro, EnumString, FromRepr, IntoStaticStr};
 
@@ -38,15 +38,6 @@ impl Into<F32ControlValue> for CherryType {
     }
 }
 
-// #[derive(Clone, Copy, Debug, Default, PartialEq, )]
-// pub struct NanoStuff {
-//     #[sync]
-//     apple_count: usize,
-//     #[sync]
-//     banana_quality: f32,
-//     #[sync]
-//     cherry_type: CherryType,
-// }
 impl NanoStuff {
     fn make_fake() -> Self {
         use rand::Rng;
@@ -69,7 +60,7 @@ impl NanoStuff {
 }
 
 #[derive(Debug, Nano, PartialEq, Uid)]
-pub struct Stuff {
+pub struct Stuff<T> {
     uid: usize,
 
     #[nano]
@@ -78,15 +69,18 @@ pub struct Stuff {
     banana_quality: f32,
     #[nano]
     cherry_type: CherryType,
+
+    _phantom: PhantomData<T>,
 }
 
-impl Stuff {
+impl<T> Stuff<T> {
     pub fn new(nano: NanoStuff) -> Self {
         let mut r = Self {
             uid: Default::default(),
             apple_count: nano.apple_count(),
             banana_quality: nano.banana_quality(),
             cherry_type: nano.cherry_type(),
+            _phantom: Default::default(),
         };
         r.precompute();
         r
@@ -193,7 +187,7 @@ impl Misc {
 type MsgType = OtherEntityMessage;
 #[derive(Everything)]
 enum Models {
-    Stuff(Stuff),
+    Stuff(Stuff<OtherEntityMessage>),
     Misc(Misc),
 }
 
@@ -236,8 +230,8 @@ mod tests {
     fn update_incrementally_with_full_structs() {
         let a_params = NanoStuff::make_fake();
         let b_params = NanoStuff::make_different_from(&a_params);
-        let mut a = Stuff::new(a_params);
-        let mut b = Stuff::new(b_params);
+        let mut a = Stuff::<OtherEntityMessage>::new(a_params);
+        let mut b = Stuff::<OtherEntityMessage>::new(b_params);
         assert_ne!(a, b);
         let message = StuffMessage::AppleCount(a.apple_count() + 1);
         a.update(message.clone());
@@ -259,8 +253,8 @@ mod tests {
     fn control_params_by_name() {
         let a_params = NanoStuff::make_fake();
         let b_params = NanoStuff::make_different_from(&a_params);
-        let a = Stuff::new(a_params);
-        let mut b = Stuff::new(b_params);
+        let a = Stuff::<OtherEntityMessage>::new(a_params);
+        let mut b = Stuff::<OtherEntityMessage>::new(b_params);
         assert_ne!(a, b);
 
         if let Some(message) = b.message_for_name("apple-count", a.apple_count().into()) {
@@ -281,8 +275,8 @@ mod tests {
     fn control_params_by_index() {
         let a_params = NanoStuff::make_fake();
         let b_params = NanoStuff::make_different_from(&a_params);
-        let a = Stuff::new(a_params);
-        let mut b = Stuff::new(b_params);
+        let a = Stuff::<OtherEntityMessage>::new(a_params);
+        let mut b = Stuff::<OtherEntityMessage>::new(b_params);
         assert_ne!(a, b);
 
         // We exclude the full message from the index.
@@ -304,7 +298,7 @@ mod tests {
 
     #[test]
     fn control_ergonomics() {
-        let a = Stuff::new(NanoStuff::make_fake());
+        let a = Stuff::<OtherEntityMessage>::new(NanoStuff::make_fake());
 
         assert_eq!(a.control_name_for_index(2), Some("cherry-type"));
         assert_eq!(a.control_index_count(), 3);
@@ -392,7 +386,12 @@ mod tests {
 
     #[test]
     fn engine_usage() {
-        let a = Stuff::new(NanoStuff::make_fake());
+        {
+            // This is here just to compare generic and non-generic structs.
+            let _misc = Misc::new_with(NanoMisc::make_fake());
+            let _misc_entity = Entity::Misc(Box::new(_misc));
+        }
+        let a = Stuff::<OtherEntityMessage>::new(NanoStuff::make_fake());
         let next_cherry = a.cherry_type().next_cherry();
         let mut ea = Entity::Stuff(Box::new(a));
 
