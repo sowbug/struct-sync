@@ -38,7 +38,7 @@ impl Into<F32ControlValue> for CherryType {
     }
 }
 
-impl NanoStuff {
+impl StuffNano {
     fn make_fake() -> Self {
         use rand::Rng;
 
@@ -74,7 +74,7 @@ pub struct Stuff<T> {
 }
 
 impl<T> Stuff<T> {
-    pub fn new(nano: NanoStuff) -> Self {
+    pub fn new(nano: StuffNano) -> Self {
         let mut r = Self {
             uid: Default::default(),
             apple_count: nano.apple_count(),
@@ -130,7 +130,7 @@ impl<T> Stuff<T> {
     }
 }
 
-impl NanoMisc {
+impl MiscNano {
     fn make_fake() -> Self {
         use rand::Rng;
 
@@ -152,7 +152,7 @@ pub struct Misc {
     dog_count: usize,
 }
 impl Misc {
-    pub fn new_with(params: NanoMisc) -> Self {
+    pub fn new_with(params: MiscNano) -> Self {
         Self {
             uid: Default::default(),
             cat_count: params.cat_count(),
@@ -198,8 +198,8 @@ mod tests {
 
     #[test]
     fn update_full() {
-        let a = NanoStuff::make_fake();
-        let mut b = NanoStuff::make_different_from(&a);
+        let a = StuffNano::make_fake();
+        let mut b = StuffNano::make_different_from(&a);
         assert_ne!(a, b);
         b.update(StuffMessage::Stuff(a.clone()));
         assert_eq!(a, b);
@@ -207,8 +207,8 @@ mod tests {
 
     #[test]
     fn update_incrementally() {
-        let mut a = NanoStuff::make_fake();
-        let mut b = NanoStuff::make_different_from(&a);
+        let mut a = StuffNano::make_fake();
+        let mut b = StuffNano::make_different_from(&a);
         assert_ne!(a, b);
         let message = StuffMessage::AppleCount(a.apple_count() + 1);
         a.update(message.clone());
@@ -228,8 +228,8 @@ mod tests {
 
     #[test]
     fn update_incrementally_with_full_structs() {
-        let a_params = NanoStuff::make_fake();
-        let b_params = NanoStuff::make_different_from(&a_params);
+        let a_params = StuffNano::make_fake();
+        let b_params = StuffNano::make_different_from(&a_params);
         let mut a = Stuff::<OtherEntityMessage>::new(a_params);
         let mut b = Stuff::<OtherEntityMessage>::new(b_params);
         assert_ne!(a, b);
@@ -251,8 +251,8 @@ mod tests {
 
     #[test]
     fn control_params_by_name() {
-        let a_params = NanoStuff::make_fake();
-        let b_params = NanoStuff::make_different_from(&a_params);
+        let a_params = StuffNano::make_fake();
+        let b_params = StuffNano::make_different_from(&a_params);
         let a = Stuff::<OtherEntityMessage>::new(a_params);
         let mut b = Stuff::<OtherEntityMessage>::new(b_params);
         assert_ne!(a, b);
@@ -273,8 +273,8 @@ mod tests {
 
     #[test]
     fn control_params_by_index() {
-        let a_params = NanoStuff::make_fake();
-        let b_params = NanoStuff::make_different_from(&a_params);
+        let a_params = StuffNano::make_fake();
+        let b_params = StuffNano::make_different_from(&a_params);
         let a = Stuff::<OtherEntityMessage>::new(a_params);
         let mut b = Stuff::<OtherEntityMessage>::new(b_params);
         assert_ne!(a, b);
@@ -298,13 +298,13 @@ mod tests {
 
     #[test]
     fn control_ergonomics() {
-        let a = Stuff::<OtherEntityMessage>::new(NanoStuff::make_fake());
+        let a = Stuff::<OtherEntityMessage>::new(StuffNano::make_fake());
 
         assert_eq!(a.control_name_for_index(2), Some("cherry-type"));
         assert_eq!(a.control_index_count(), 3);
         assert_eq!(a.control_name_for_index(a.control_index_count()), None);
 
-        let a = NanoMisc::make_fake();
+        let a = MiscNano::make_fake();
 
         assert_eq!(a.control_name_for_index(0), Some("cat-count"));
         assert_eq!(a.control_index_count(), 2);
@@ -321,16 +321,16 @@ mod tests {
     #[test]
     fn build_views() {
         let entities = vec![
-            EntityParams::Stuff(Box::new(NanoStuff::make_fake())),
-            EntityParams::Misc(Box::new(NanoMisc::make_fake())),
-            EntityParams::Misc(Box::new(NanoMisc::make_fake())),
+            EntityNano::Stuff(Box::new(StuffNano::make_fake())),
+            EntityNano::Misc(Box::new(MiscNano::make_fake())),
+            EntityNano::Misc(Box::new(MiscNano::make_fake())),
         ];
 
         // Build custom views from entity getters
         for entity in entities.iter() {
             match entity {
-                EntityParams::Stuff(_e) => {}
-                EntityParams::Misc(_e) => {}
+                EntityNano::Stuff(_e) => {}
+                EntityNano::Misc(_e) => {}
             }
         }
 
@@ -355,9 +355,9 @@ mod tests {
     #[test]
     fn handle_app_updates() {
         let mut entities = vec![
-            EntityParams::Stuff(Box::new(NanoStuff::make_fake())),
-            EntityParams::Misc(Box::new(NanoMisc::make_fake())),
-            EntityParams::Misc(Box::new(NanoMisc::make_fake())),
+            EntityNano::Stuff(Box::new(StuffNano::make_fake())),
+            EntityNano::Misc(Box::new(MiscNano::make_fake())),
+            EntityNano::Misc(Box::new(MiscNano::make_fake())),
         ];
 
         // Connect two things
@@ -372,12 +372,12 @@ mod tests {
         let entity = &mut entities[uid];
         match message {
             OtherEntityMessage::Stuff(message) => {
-                if let EntityParams::Stuff(entity) = entity {
+                if let EntityNano::Stuff(entity) = entity {
                     entity.update(message);
                 }
             }
             OtherEntityMessage::Misc(message) => {
-                if let EntityParams::Misc(entity) = entity {
+                if let EntityNano::Misc(entity) = entity {
                     entity.update(message);
                 }
             }
@@ -388,10 +388,10 @@ mod tests {
     fn engine_usage() {
         {
             // This is here just to compare generic and non-generic structs.
-            let _misc = Misc::new_with(NanoMisc::make_fake());
+            let _misc = Misc::new_with(MiscNano::make_fake());
             let _misc_entity = Entity::Misc(Box::new(_misc));
         }
-        let a = Stuff::<OtherEntityMessage>::new(NanoStuff::make_fake());
+        let a = Stuff::<OtherEntityMessage>::new(StuffNano::make_fake());
         let next_cherry = a.cherry_type().next_cherry();
         let mut ea = Entity::Stuff(Box::new(a));
 
