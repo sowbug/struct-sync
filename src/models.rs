@@ -1,7 +1,4 @@
-use groove_core::{
-    control::F32ControlValue,
-    traits::{Controllable, HasUid},
-};
+use groove_core::{control::F32ControlValue, traits::HasUid};
 use groove_proc_macros::{Everything, Nano, Uid};
 use std::str::FromStr;
 use strum::EnumCount;
@@ -203,6 +200,7 @@ enum Models {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use groove_core::traits::Controllable;
 
     #[test]
     fn update_full() {
