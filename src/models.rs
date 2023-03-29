@@ -39,7 +39,7 @@ impl Into<F32ControlValue> for CherryType {
     }
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Synchronization)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Synchronization)]
 pub struct StuffParams {
     #[sync]
     apple_count: usize,
@@ -130,7 +130,7 @@ impl Stuff {
     // }
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Synchronization)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Synchronization)]
 pub struct MiscParams {
     #[sync]
     cat_count: usize,
@@ -172,11 +172,11 @@ impl Misc {
 
 all_entities! {
     // struct; params; message; is_controller; is_controllable,
-    Stuff; StuffParams; StuffParamsMessage; true; false,
-    Misc; MiscParams; MiscParamsMessage; false; true,
+    Stuff; StuffParams; Stuff; true; false,
+    Misc; MiscParams; Misc; false; true,
 }
 
-type Moosage = OtherEntityMessage;
+type MsgType = OtherEntityMessage;
 #[derive(Everything)]
 enum Models {
     Stuff(Stuff),
@@ -385,17 +385,17 @@ mod tests {
 
         // Handle an incoming message
         let message = StuffParamsMessage::AppleCount(45);
-        let wrapped_message = AppMessages::Wrapper(1, OtherEntityMessage::StuffParams(message));
+        let wrapped_message = AppMessages::Wrapper(1, OtherEntityMessage::Stuff(message));
 
         let AppMessages::Wrapper(uid, message) = wrapped_message;
         let entity = &mut entities[uid];
         match message {
-            OtherEntityMessage::StuffParams(message) => {
+            OtherEntityMessage::Stuff(message) => {
                 if let EntityParams::Stuff(entity) = entity {
                     entity.update(message);
                 }
             }
-            OtherEntityMessage::MiscParams(message) => {
+            OtherEntityMessage::Misc(message) => {
                 if let EntityParams::Misc(entity) = entity {
                     entity.update(message);
                 }
