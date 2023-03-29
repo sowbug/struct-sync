@@ -1,5 +1,4 @@
 use groove_core::{control::F32ControlValue, traits::HasUid};
-use groove_macros::all_entities;
 use groove_proc_macros::{Everything, Synchronization, Uid};
 use std::str::FromStr;
 use strum::EnumCount;
@@ -168,12 +167,6 @@ impl Misc {
     fn params(&self) -> &MiscParams {
         &self.params
     }
-}
-
-all_entities! {
-    // struct; params; message; is_controller; is_controllable,
-    Stuff; StuffParams; Stuff; true; false,
-    Misc; MiscParams; Misc; false; true,
 }
 
 type MsgType = OtherEntityMessage;
